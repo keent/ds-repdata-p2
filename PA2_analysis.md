@@ -1,24 +1,12 @@
----
-title: "NOAA Storm Database Analysis"
-author: "Gran Ville Lintao"
-date: "August 22, 2015"
-output: 
-  html_document: 
-    keep_md: yes
----
+# NOAA Storm Database Analysis
+Gran Ville Lintao  
+August 22, 2015  
 
 ## Synopsis
 In this study we aim to gain understanding on what types of events throughout the US history are the most harmful to population health and most damaging to the US economy. To investigate this we obtained the Storm Data from the National Weather Service. This contains data from the year 1950 up to 2011, but we only analyze more clean and reliable data starting from 1995 up to 2011. From the results of cleaning, summarizing and analyzing the data we found out that "Tornado" events are the most harmful to population health resulting to more than 50,000 counts of combined fatalities and injuries. Meanwhile, "ThunderStormWinds" are the most economically damaging resulting to 2 Billion USD in damages from 1995 to 2011 in the US.
 
 <!-- Libraries and Options -->
-```{r setoptions, echo=FALSE, message=FALSE}
-library(plyr)
-library(dplyr)
-library(ggplot2)
 
-knitr::opts_chunk$set(fig.width=9, fig.height=6, fig.path='figure/', warning=FALSE, message=FALSE)
-
-```
 
 ## Data Processing
 
@@ -35,7 +23,8 @@ Additional documentation about this database is available from the following lin
 
 In the following code, we aim to load the csv file and convert it to plyr structures for easier processing:
 
-```{r, cache=TRUE}
+
+```r
 fileName <- "repdata-data-StormData.csv.bz2"
 dataRead <- read.csv(fileName, stringsAsFactors=FALSE)
 dataAsDF <- tbl_df(dataRead)
@@ -46,13 +35,15 @@ dataAsDF <- tbl_df(dataRead)
 ### Data Processing - Tidying the data
 
 In the following code we subset the original data and include only those events that has fatalities and injuries
-```{r}
+
+```r
 # subset for analysis
 dataHarm <- subset(dataAsDF, !(FATALITIES==0 & INJURIES==0))
 ```
 
 And then since the EVTYPE variable is messy and uses inconsistent naming, we shall clean it by making it consistent and correcting spelling mistakes
-```{r}
+
+```r
 # clean EVTYPE variable for more accurate analysis
 
 # tolower
@@ -78,7 +69,8 @@ dataHarm$EVTYPE <- sub("winterweather/mix$|winterweathermix$|wintrymix$", "winte
 
 Now that the data is clean - we devise a strategy for calculating the total effect of fatalities and injuries. 
 We do this by counting 1 fatality as 1 total effect and 2 injuries as 1 total effect - we do this calculation since in economic terms 1 injury doesn't seem to equate with 1 fatality.
-```{r}
+
+```r
 # process for analysis
 dataHarm <- mutate(dataHarm, TOTALHARMWEIGHT=FATALITIES + (INJURIES/2))
 dataHarm <- arrange(dataHarm, desc(TOTALHARMWEIGHT))
@@ -87,7 +79,8 @@ dataHarm <- arrange(dataHarm, desc(TOTALHARMWEIGHT))
 ### Results - Summary
 
 In the next code, we summarize the Total Harm Weight by summing it across all the event types
-```{r}
+
+```r
 # summarize TOTALHARMWEIGHT per EVTYPE 
 byEvtType <- group_by(dataHarm, EVTYPE)
 summaryByEvtType <- summarize(byEvtType, TOTALHARMWEIGHT=sum(TOTALHARMWEIGHT))
@@ -96,10 +89,13 @@ summaryByEvtType <- arrange(summaryByEvtType, desc(TOTALHARMWEIGHT))
 
 ### Results - Data Visualization
 And then we pick out the top 10 events and finally show a plot for a quick visualization
-```{r}
+
+```r
 summaryByEvtTypeTop <- summaryByEvtType[1:10,]
 qplot(TOTALHARMWEIGHT, EVTYPE, data=summaryByEvtTypeTop, xlab="Total Harm Weight", ylab="Event Type")
 ```
+
+![](figure/unnamed-chunk-6-1.png) 
 
 As we can see above, Tornado events are the most harmful to population health and it dwarfs the other events by Total Harm Weight. Next on the list is ThunderStormWind and ExcessiveHeat, followed by Flood and Lightning, then FlashFlood and Heat. The rest are mostly with the same values.
 
@@ -108,7 +104,8 @@ As we can see above, Tornado events are the most harmful to population health an
 ### Data Processing - Subsetting recent date
 In this code we transform the date to R Posix types and use it so that we only analyze more recent data because this data are much more reliable and data gathered on these dates are a lot more consistent.
 
-```{r}
+
+```r
 dataEco <- dataAsDF
 dataEco$BGN_DATE2 <- strptime(dataEco$BGN_DATE, format="%m/%d/%Y")
 # analyse only recent times - from 1995 to 2011
@@ -117,7 +114,8 @@ dataEco <- subset(dataEco, BGN_DATE2 >= as.POSIXct("01/01/1996", format="%m/%d/%
 
 ### Data Processing - Tidying the EVTYPE
 Next we clean the resulting data for a much tidier analysis
-```{r}
+
+```r
 # clean EVTYPE variable for more accurate analysis
 # tolower
 dataEco$EVTYPE <- tolower(dataEco$EVTYPE)
@@ -145,7 +143,8 @@ Thus, we then tidy the Property Damage Exponent and the Crop Damage Exponent.
 Then we create another column which we use to multiply with the Property Damage Cost and the Crop Damage Cost.
 Finally we sum both costs to create the TOTALECODMG or "Total Economic Damage"
 
-```{r}
+
+```r
 dataEco$PROPDMGEXP <- tolower(dataEco$PROPDMGEXP)
 dataEco$CROPDMGEXP <- tolower(dataEco$CROPDMGEXP)
 
@@ -175,7 +174,8 @@ dataEco <- mutate(dataEco, TOTALECODMG = (PROPDMG * (10 ^ PROPDMGEXP2)) + (CROPD
 
 ### Results - Summary
 Next we then summarize the Total Economic Damage by Event Type then arrange them from top to bottom.
-```{r}
+
+```r
 dataEcoNew <- dataEco
 dataEcoNew$BGN_DATE2 <- NULL
 dataEcoNew2 <- group_by(dataEcoNew, EVTYPE)
@@ -186,10 +186,13 @@ sumDataEco <- arrange(sumDataEco, desc(TOTALECODMG))
 ### Results - Data Visualization
 Picking out the top 10 and plotting the data with the Event Type vs Total Economic Damage, we can clearly see that throughout the US history - the ThunderStormWind leads the damage by 2 Billion USD, followed by FlashFlood, then Tornado. Next is Hail, then Floods. The rest seems to cost around and less than 500 Million USD.
 
-```{r}
+
+```r
 sumDataEcoFinal <- sumDataEco[1:10,]
 qplot(TOTALECODMG, EVTYPE, data=sumDataEcoFinal, xlab="Total Economic Damage", ylab="Event Type")
 ```
+
+![](figure/unnamed-chunk-11-1.png) 
 
 
 
